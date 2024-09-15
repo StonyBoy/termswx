@@ -1,0 +1,52 @@
+'Steen Hegelund
+'Time-Stamp: 2024-Feb-26 20:16
+'vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=plantuml :
+
+@startuml
+
+title "TermSWX application console input - 24-feb-2024"
+
+<style>
+sequenceDiagram {
+    entity {
+        BackGroundColor #aed6f1
+    }
+    control {
+        BackGroundColor #f5b7b1
+    }
+    boundary {
+        BackGroundColor #a2d9ce
+    }
+}
+</style>
+
+boundary "Local Console" as cmd
+control "Console Service Thread" as conthr
+entity "Term Switch Thread" as swxthr
+control "Serial Service Thread" as serthr
+boundary "Serial Device" as dev
+
+autonumber
+
+     cmd -> conthr: get(char)
+  conthr -> swxthr: Send(switch.channel.tx, KeyEvent(char))
+
+  swxthr -> swxthr: Recv(switch.channel.rx, KeyEvent(char))
+  swxthr -> serthr: Send(serial.channel.tx, KeyEvent(char))
+
+  serthr -> serthr: Recv(serial.channel.rx, KeyEvent(char))
+
+     serthr -> dev: put(char)
+    dev --> serthr: get(char) "echo"
+
+  serthr -> swxthr: Send(switch.channel.tx, SerialEvent(char))
+  swxthr -> swxthr: Recv(switch.channel.rx, SerialEvent(char))
+
+  swxthr -> conthr: Send(console.channel.tx, SerialEvent(char))
+  conthr -> conthr: Recv(console.channel.rx, SerialEvent(char))
+
+     conthr -> cmd: print(char)
+
+@enduml
+
+

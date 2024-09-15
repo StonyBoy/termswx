@@ -1,0 +1,55 @@
+'Steen Hegelund
+'Time-Stamp: 2024-Mar-23 11:20
+'vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=plantuml :
+
+@startuml
+
+title "TermSWX application design - 18-feb-2024"
+
+/' Force this to be a deployment diagram '/
+component component1
+hide component1
+
+<style>
+componentDiagram {
+    LineThickness 2
+    entity {
+        BackGroundColor #aed6f1
+    }
+    control {
+        BackGroundColor #f5b7b1
+    }
+    boundary {
+        BackGroundColor #a2d9ce
+    }
+    cloud {
+        LineThickness 1
+    }
+}
+</style>
+
+boundary "Serial Device" as dev
+boundary "Local Console" as cmd
+boundary "Network IF" as net
+boundary "Log File" as logf
+boundary "Configuration File" as cfgf
+control "Console Service" as con
+control "Logger Service" as log
+control "Serial Service" as ser
+control "Network Service" as netsrv
+control "Configuration Service" as cfg
+entity "Term Switch" as swx
+
+cmd -up-  con
+con -up-  swx
+swx -- ser
+ser -- dev
+swx --> log
+log --> logf
+swx <-- cfg
+cfg <-- cfgf
+swx -up- netsrv
+netsrv -up- net
+
+@enduml
+

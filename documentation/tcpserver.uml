@@ -1,0 +1,57 @@
+'Steen Hegelund
+'Time-Stamp: 2024-Feb-26 20:18
+'vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=plantuml :
+
+@startuml
+
+title "TermSWX TCP Server - 24-feb-2024"
+
+<style>
+sequenceDiagram {
+    entity {
+        BackGroundColor #aed6f1
+    }
+    control {
+        BackGroundColor #f5b7b1
+    }
+    boundary {
+        BackGroundColor #a2d9ce
+    }
+}
+</style>
+
+control "TCP Server Thread" as tcpthr
+boundary "Network IF" as net
+entity "Term Switch Thread" as swxthr
+control "Serial Service Thread" as serthr
+boundary "Serial Device" as dev
+control "Console Service Thread" as conthr
+boundary "Local Console" as cmd
+
+autonumber
+
+      tcpthr -> net: recv(char)
+   tcpthr -> swxthr: Send(NetEvent(char), switch.channel.tx)
+
+   swxthr -> swxthr: Recv(switch.channel.rx, NetEvent(char))
+   swxthr -> serthr: Send(serial.channel.tx, NetEvent(char))
+
+   serthr -> serthr: Recv(serial.channel.rx, NetEvent(char))
+
+      serthr -> dev: put(char)
+     dev --> serthr: get(char) "echo"
+
+   serthr -> swxthr: Send(switch.channel.tx, SerialEvent(char))
+   swxthr -> swxthr: Recv(switch.channel.rx, SerialEvent(char))
+
+   swxthr -> tcpthr: Send(network.channel.tx, SerialEvent(char))
+   tcpthr -> tcpthr: Recv(network.channel.rx, SerialEvent(char))
+      tcpthr -> net: send(char)
+
+   swxthr -> conthr: Send(console.channel.tx, SerialEvent(char))
+   conthr -> conthr: Recv(console.channel.rx, SerialEvent(char))
+      conthr -> cmd: print(char)
+
+@enduml
+
+

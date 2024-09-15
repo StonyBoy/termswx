@@ -1,0 +1,30 @@
+'Steen Hegelund
+'Time-Stamp: 2024-Apr-06 13:24
+'vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=plantuml :
+
+@startuml
+
+title "TermSWX ANSI escape sequence filter: 6-apr-2024"
+
+[*] --> Init
+
+Init --> Start : ESC: save()
+Init -up-> Init : val == 0: return None
+Init -right-> Init : set(val = 0), return Some(event)
+
+Start --> Mode : '[': save()
+Start --> Init
+
+Mode --> Screen : '0' - '9': save()
+Mode --> Paste : '?': save()
+Mode --> Init
+
+Screen --> Screen : '0' - '9': save()
+Screen --> Init : alphabetic: clear()
+Screen -left-> Screen : save()
+
+Paste --> Screen : '0' - '9': save()
+Paste --> Init : clear()
+
+@enduml
+

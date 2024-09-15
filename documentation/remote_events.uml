@@ -1,0 +1,63 @@
+'Steen Hegelund
+'Time-Stamp: 2024-Mar-11 16:28
+'vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=plantuml :
+
+@startuml
+
+title "TermSWX remote event flow - 11-mar-2024"
+
+<style>
+componentDiagram {
+    LineThickness 2
+    entity {
+        BackGroundColor #aed6f1
+    }
+    control {
+        BackGroundColor #f5b7b1
+    }
+    boundary {
+        BackGroundColor #a2d9ce
+    }
+    cloud {
+        LineThickness 1
+    }
+    component {
+        LineColor DarkBlue
+        BackGroundColor WhiteSmoke
+    }
+}
+</style>
+
+component client {
+    boundary "Client Console" as clicmd
+    control "Client Console Service" as clicon
+    entity "Client Term Switch Local" as cliswx
+    control "Network Service Client" as netcli
+    boundary "Client Network IF" as cliif
+}
+
+component server {
+    boundary "Server Network IF" as srvif
+    control "Network Service Server" as netsrv
+    entity "Server Term Switch" as srvswx
+    control "Server Serial Service" as ser
+    boundary "Server Serial Device" as dev
+    boundary "Server Console" as cmd
+    control "Server Console Service" as con
+}
+
+clicmd -up- clicon
+clicon -> cliswx : Console(byte)
+cliswx -up-> netcli : Serial(byte)
+netcli -up-> cliif : byte
+cliif -> srvif : byte
+srvif -down-> netsrv : byte
+netsrv -down-> srvswx : Console(byte)
+srvswx -> ser : Serial(byte)
+dev -up- ser
+
+cmd -up- con
+con -> srvswx : Console(byte)
+
+@enduml
+

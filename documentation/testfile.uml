@@ -1,0 +1,56 @@
+'Steen Hegelund
+'Time-Stamp: 2024-Feb-26 20:24
+'vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=plantuml :
+
+@startuml
+
+title "TermSWX using a testfile - 26-feb-2024"
+
+<style>
+sequenceDiagram {
+    entity {
+        BackGroundColor #aed6f1
+    }
+    control {
+        BackGroundColor #f5b7b1
+    }
+    boundary {
+        BackGroundColor #a2d9ce
+    }
+}
+</style>
+
+boundary "Main Entry" as main
+entity "Term Switch Thread" as swxthr
+control "Test File Service" as tfs
+control "Test File Service Thread" as tfsthr
+boundary "Test File" as tfl
+
+autonumber
+
+       main -> tfs : open_device(path, Serial, Switch)
+        tfs -> tfl : read_file(path)
+       tfl --> tfs : content
+     tfs -> tfsthr : spawn(content, switch.channel.tx, serial.channel.rx)
+  tfsthr -> tfsthr : select(console.channel.rx)
+
+  == User is typing in the console ==
+
+  swxthr -> tfsthr : Send(serial.channel.tx, KeyEvent(char))
+
+  tfsthr -> tfsthr : Recv(serial.channel.rx, KeyEvent(char))
+
+  tfsthr -> swxthr : Send(switch.channel.tx, serialEvent(char))
+  swxthr -> swxthr : Recv(switch.channel.rx, serialEvent(char))
+
+  tfsthr -> tfsthr : [char == newline]
+
+  == Send content line char by char ==
+
+  tfsthr -> swxthr : Send(switch.channel.tx, SerialEvent(content[line][pos]))
+
+  == Done ==
+
+@enduml
+
+

@@ -1,0 +1,66 @@
+'Steen Hegelund
+'Time-Stamp: 2024-Feb-26 20:21
+'vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=plantuml :
+
+@startuml
+
+title "TermSWX application startup - 23-feb-2024"
+
+<style>
+sequenceDiagram {
+    entity {
+        BackGroundColor #aed6f1
+    }
+    control {
+        BackGroundColor #f5b7b1
+    }
+    boundary {
+        BackGroundColor #a2d9ce
+    }
+}
+</style>
+
+boundary "Main Entry" as main
+entity "Term Switch" as swx
+control "Console Service" as con
+control "Console Service Thread" as conthr
+control "Serial Service" as ser
+control "Serial Service Thread" as serthr
+control "Test File Service" as tfs
+control "Test File Service Thread" as tfsthr
+control "TCP Service" as tcp
+control "TCP Service Thread" as tcpthr
+entity "Term Switch Thread" as swxthr
+
+autonumber
+
+           main -> swx :  get_channels(Console, Serial, Network, Switch)
+
+           main -> con :  open_console(opts.server, Console, Switch)
+         con -> conthr :  spawn(switch.channel.tx, console.channel.rx)
+      conthr -> conthr :  config_console(raw_mode)
+
+== If device path is local file ==
+
+           main -> ser :  open_device(path, serial, switch)
+            ser -> ser :  read_file(path)
+         ser -> tfsthr :  spawn(content, switch.channel.tx, serial.channel.rx)
+
+== If device path is serial device ==
+
+           main -> tfs :  open_device(path, serial, switch)
+         tfs -> tfsthr :  spawn(switch.channel.tx, serial.channel.rx)
+      tfsthr -> tfsthr :  config_serial(baudrate)
+
+== end ==
+           main -> tcp :  start_server(portno)
+         tcp -> tcpthr :  spawn(portno, Network, Switch)
+      tcpthr -> tcpthr :  config_network(portno)
+
+           main -> swx :  start(Console, Serial, Switch, Network)
+         swx -> swxthr :  spawn(console.channel.tx, serial.channel.tx, network.channel.tx, switch.channel.rx)
+      swxthr -> swxthr :  select(channel list)
+
+@enduml
+
+
