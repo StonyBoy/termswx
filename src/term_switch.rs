@@ -120,7 +120,7 @@ pub fn start(server: bool) -> TermSwitch {
                     }
                 }
                 Ok(MsgType::Console(ch)) => {
-                    trace!("console: {ch:#02x}");
+                    trace!("console: {:#02x} '{}'", ch, ch as char);
                     serial_tx.send(MsgType::Serial(ch)).unwrap();
                 }
                 Ok(MsgType::SerialClose) => {
@@ -132,7 +132,7 @@ pub fn start(server: bool) -> TermSwitch {
                     serial_tx.send(MsgType::SerialBreak).unwrap();
                 }
                 Ok(MsgType::Serial(ch)) => {
-                    trace!("serial: {ch:#02x}");
+                    trace!("serial: {:#02x} '{}'", ch, ch as char);
                     console_tx.send(MsgType::Console(ch)).unwrap();
                     if server {
                         net_clients.iter().for_each(|elem| elem.tx.send(MsgType::Console(ch)).unwrap());

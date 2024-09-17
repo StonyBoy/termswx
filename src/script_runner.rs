@@ -57,6 +57,7 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
 
     // Get serial output and send to the script stdin
     thread::spawn(move || {
+        const CR: u8 = 0xd;
         let mut buffer = vec![0; 1];
         loop {
             match cmd.rx.recv() {
@@ -67,6 +68,9 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
                         if val == ch {
                             continue;
                         }
+                    }
+                    if ch == CR {
+                        continue;
                     }
                     // Filter out ANSI escape sequence
                     while let Some(ch) = fsm.input(&mut ch) {
@@ -135,6 +139,7 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
 
     // Get script stdout and send it to the serial port
     thread::spawn(move || {
+        const CR: u8 = 0xd;
         let mut rdr = BufReader::new(stdout);
         loop {
             let mut buf = String::new();
@@ -151,6 +156,10 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
                 }
                 Ok(_) => {
                     for val in buf.as_bytes() {
+                        if *val == CR {
+                            continue;
+                        }
+                        trace!("Script_tx: {:#02x} '{}'", val, *val as char);
                         cmd.tx.send(MsgType::Console(*val)).unwrap();
                         echo_tx.send(*val).unwrap();
                     }

@@ -146,7 +146,8 @@ fn build_script_envir(cmdopts: &CmdLineConfig, fileconfig: &FileConfig) -> HashM
 // Open the local console for reading input.  Handle shortcuts: injecting or starting a script
 // Use the raw mode (no wait for enter, no automatic output)
 pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfig: FileConfig) -> Result<thread::JoinHandle<()>,u32> {
-    const NL: u8 = 0xd;
+    const NL: u8 = 0xa;
+    const CR: u8 = 0xd;
     trace!("Starting console thread: quiet: {}", cmdopts.server);
     terminal::enable_raw_mode().unwrap();
 
@@ -199,12 +200,11 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                         } else {
                             // Replace "~" with the home folder for script paths
                             let narg = subst_home(arg);
-                            const CR: u8 = 0xa;
 
                             if let Ok(content) = std::fs::read_to_string(narg.clone()) {
                                 for val in content.as_bytes() {
                                     switch_tx.send(MsgType::Console(*val)).unwrap();
-                                    if *val == CR {
+                                    if *val == NL {
                                         thread::sleep(Duration::from_millis(250));
                                     }
                                 }
@@ -258,7 +258,7 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                         let out: &[u8] = &buffer[idx..idx+1];
                         io::stdout().write(out).unwrap();
                         io::stdout().flush().unwrap();
-                        if val == NL {
+                        if val == CR {
                             in_prompt.store(false, Ordering::Relaxed);
                         }
                     }
