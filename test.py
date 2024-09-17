@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Steen Hegelund
-# Time-Stamp: 2024-Sep-15 17:11
+# Time-Stamp: 2024-Sep-17 14:56
 # vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=python :
 
 import argparse
@@ -30,11 +30,16 @@ class Commands(termswx.LinuxLoginMixin, termswx.LoggerMixin, termswx.MenuMixin, 
     def __init__(self):
         super().__init__()
         self.log('test.log')
+        self.erase()
 
     def banner(self, idx, total):
         text = f'This is iteration {idx} of {total}'
         self.alert(text)
         self.log_responses.append(text)
+
+    def set_date(self):
+        cmd = f'date {time.strftime("%Y-%m-%d%H:%M:%S", time.localtime())}'
+        self.cmd(cmd)
 
     def get_date(self):
         res = self.command('date -uR')
@@ -102,6 +107,7 @@ def main():
     args = parse_arguments()
 
     cmds.login(args.username, args.password)
+    cmds.set_date()
 
     def sig_handler(signum, frame):
         filename = cmds.save()
