@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-15 16:36
+//Time-Stamp: 2024-Sep-23 20:32
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Run python scripts
@@ -10,7 +10,7 @@ use crate::config::subst_home;
 use crate::console_service::show_error;
 
 use log::{error, info, trace};
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, Write, Read};
 use std::thread;
 use std::thread::sleep;
 use std::sync::Arc;
@@ -30,6 +30,7 @@ pub struct ScriptCommand {
     pub pid: Arc::<AtomicU32>,
     pub envir: HashMap<String, String>,
     pub in_prompt: Arc::<AtomicBool>,
+    pub binary_mode: Arc::<AtomicBool>,
 }
 
 
@@ -49,11 +50,12 @@ pub fn signal(u32pid: u32) {
 fn child_process(cmd: ScriptCommand, mut child: Child) {
     cmd.pid.store(child.id(), Ordering::Relaxed);
     let mut stdin = child.stdin.take().expect("Get stdin");
-    let stdout = child.stdout.take().expect("Get stdout");
+    let mut stdout = child.stdout.take().expect("Get stdout");
     let stderr = child.stderr.take().expect("Get stderr");
-    let script = cmd.arg.clone();
     let (echo_tx, echo_rx) = unbounded();
     let mut fsm = AnsiSeqState::new();
+    let binary_mode = cmd.binary_mode.clone();
+    let endtext = format!("End {} with process id {}\r", cmd.arg, child.id());
 
     // Get serial output and send to the script stdin
     thread::spawn(move || {
@@ -62,35 +64,53 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
         loop {
             match cmd.rx.recv() {
                 Ok(MsgType::Console(mut ch)) => {
-                    // Remove command echo characters
-                    trace!("Script_rx: {ch:#02x}");
-                    if let Ok(val) = echo_rx.try_recv() {
-                        if val == ch {
-                            continue;
-                        }
-                    }
-                    if ch == CR {
-                        continue;
-                    }
-                    // Filter out ANSI escape sequence
-                    while let Some(ch) = fsm.input(&mut ch) {
-                        trace!("Script_rx_filtered: {:#02x} '{}'", ch, ch as char);
+                    if binary_mode.load(Ordering::Relaxed) {
+                        trace!("Script_rx (binary): {:#02x} '{}'", ch, ch as char);
                         buffer.clear();
                         buffer.push(ch);
-                        loop {
-                            match stdin.write(&buffer) {
-                                Ok(0) => {
-                                    stdin.flush().unwrap();
-                                    thread::sleep(Duration::from_millis(6));
-                                }
-                                Ok(_) => {
-                                    stdin.flush().unwrap();
-                                    thread::sleep(Duration::from_micros(100));
-                                    break;
-                                }
-                                Err(e) => {
-                                    error!("\rScript stdin write error: {e:?}");
-                                    break;
+                        match stdin.write(&buffer) {
+                            Ok(0) => {
+                                stdin.flush().unwrap();
+                                trace!("Script_rx (binary): dropped {:#02x} '{}'", ch, ch as char);
+                            }
+                            Ok(_) => {
+                                stdin.flush().unwrap();
+                            }
+                            Err(e) => {
+                                error!("\rScript stdin write error: {e:?}");
+                            }
+                        }
+                    } else {
+                        trace!("Script_rx: {:#02x} '{}'", ch, ch as char);
+                        // Remove command echo characters
+                        if let Ok(val) = echo_rx.try_recv() {
+                            if val == ch {
+                                continue;
+                            }
+                        }
+                        if ch == CR {
+                            continue;
+                        }
+                        // Filter out ANSI escape sequence
+                        while let Some(ch) = fsm.input(&mut ch) {
+                            trace!("Script_rx_filtered: {:#02x} '{}'", ch, ch as char);
+                            buffer.clear();
+                            buffer.push(ch);
+                            loop {
+                                match stdin.write(&buffer) {
+                                    Ok(0) => {
+                                        stdin.flush().unwrap();
+                                        thread::sleep(Duration::from_millis(6));
+                                    }
+                                    Ok(_) => {
+                                        stdin.flush().unwrap();
+                                        thread::sleep(Duration::from_micros(100));
+                                        break;
+                                    }
+                                    Err(e) => {
+                                        error!("\rScript stdin write error: {e:?}");
+                                        break;
+                                    }
                                 }
                             }
                         }
@@ -138,30 +158,38 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
     });
 
     // Get script stdout and send it to the serial port
+    let binary_mode = cmd.binary_mode.clone();
     thread::spawn(move || {
         const CR: u8 = 0xd;
-        let mut rdr = BufReader::new(stdout);
         loop {
-            let mut buf = String::new();
-            match rdr.read_line(&mut buf) {
+            let mut buffer = vec![0; 1024];
+            match stdout.read(&mut buffer) {
                 Ok(0) => {
-                    let text = format!("End of {}", script);
-                    terminal::disable_raw_mode().unwrap();
-                    println!("\n{}", text.with(Color::White).on(Color::DarkGreen));
-                    terminal::enable_raw_mode().unwrap();
-                    info!("Script end of stdout for {}", script);
+                    println!("\r{}\r", endtext);
+                    info!("{}", endtext);
                     // Send done to force the stdout thread to exit too
                     cmd.tx.send(MsgType::ScriptDone).unwrap();
                     break;
                 }
-                Ok(_) => {
-                    for val in buf.as_bytes() {
-                        if *val == CR {
-                            continue;
+                Ok(cnt) => {
+                    if binary_mode.load(Ordering::Relaxed) {
+                        trace!("Script_tx (binary): count {}/{}", cnt, buffer.len());
+                        for idx in 0..cnt {
+                            let val: u8 = buffer[idx];
+                            trace!("Script_tx (binary): {:#02x} '{}'", val, val as char);
+                            cmd.tx.send(MsgType::Console(val)).unwrap();
+                            // thread::sleep(Duration::from_micros(100));
                         }
-                        trace!("Script_tx: {:#02x} '{}'", val, *val as char);
-                        cmd.tx.send(MsgType::Console(*val)).unwrap();
-                        echo_tx.send(*val).unwrap();
+                    } else {
+                        for idx in 0..cnt {
+                            let val: u8 = buffer[idx];
+                            if val == CR {
+                                continue;
+                            }
+                            trace!("Script_tx: {:#02x} '{}'", val, val as char);
+                            cmd.tx.send(MsgType::Console(val)).unwrap();
+                            echo_tx.send(val).unwrap();
+                        }
                     }
                 }
                 Err(e) => {
@@ -175,6 +203,7 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
 
     // Get script stderr and print it on the console as alert messages
     let in_prompt = cmd.in_prompt.clone();
+    let binary_mode = cmd.binary_mode.clone();
     thread::spawn(move || {
         let mut rdr = BufReader::new(stderr);
         loop {
@@ -208,6 +237,16 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
                         }
                         '\u{15}' => {
                             println!("\n{}", text.with(Color::White).on(Color::Green));
+                        }
+                        '\u{16}' => {
+                            println!("\nbinary: on");
+                            info!("binary on");
+                            binary_mode.store(true, Ordering::Relaxed);
+                        }
+                        '\u{17}' => {
+                            println!("\nbinary: off");
+                            info!("binary off");
+                            binary_mode.store(false, Ordering::Relaxed);
                         }
                         _ => {
                             let text = String::from(&buf[0..(buf.len()-1)]);
@@ -251,8 +290,9 @@ pub fn execute_script(cmd: ScriptCommand) {
             show_error(msg);
         }
         Ok(child) => {
-            println!("\rStart {} as process id {}\r", cmd.arg, child.id());
-            info!("Start script {} as process id {}", cmd.arg, child.id());
+            let text = format!("Start {} as process id {}", cmd.arg, child.id());
+            println!("\r{}\r", text);
+            info!("{}", text);
             child_process(cmd, child);
         }
     }

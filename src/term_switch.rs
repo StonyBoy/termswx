@@ -1,11 +1,11 @@
 //Steen Hegelund
-//Time-Stamp: 2024-May-02 22:32
+//Time-Stamp: 2024-Sep-23 20:38
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 use log::{error, trace, info};
 use std::thread;
 use crossbeam_channel::{unbounded, Sender, Receiver};
-use std::sync::{Arc, atomic::AtomicU32, atomic::Ordering};
+use std::sync::{Arc, atomic::AtomicU32, atomic::AtomicBool, atomic::Ordering};
 use std::net::SocketAddr;
 
 // Messages sent via channels between threads
@@ -40,6 +40,7 @@ pub struct TermSwitch {
     script_rx: Receiver<MsgType>,
 
     script_pid: Arc<AtomicU32>,
+    binary_mode: Arc<AtomicBool>,
 
     stop: bool,
 }
@@ -68,6 +69,9 @@ impl TermSwitch {
     pub fn get_script_pid(&self) -> Arc::<AtomicU32> {
         self.script_pid.clone()
     }
+    pub fn get_binary_mode(&self) -> Arc::<AtomicBool> {
+        self.binary_mode.clone()
+    }
 }
 
 
@@ -87,10 +91,12 @@ pub fn start(server: bool) -> TermSwitch {
         network_rx,
         script_rx,
         script_pid: Arc::new(AtomicU32::new(0)),
+        binary_mode: Arc::new(AtomicBool::new(false)),
         stop: false,
     };
 
     let script_pid = termswx.script_pid.clone();
+    let binary_mode = termswx.binary_mode.clone();
 
     // Exchange messages
     thread::spawn(move || {
@@ -133,12 +139,16 @@ pub fn start(server: bool) -> TermSwitch {
                 }
                 Ok(MsgType::Serial(ch)) => {
                     trace!("serial: {:#02x} '{}'", ch, ch as char);
-                    console_tx.send(MsgType::Console(ch)).unwrap();
                     if server {
                         net_clients.iter().for_each(|elem| elem.tx.send(MsgType::Console(ch)).unwrap());
                     }
                     if script_pid.load(Ordering::Relaxed) != 0 {
                         script_tx.send(MsgType::Console(ch)).unwrap();
+                        if !binary_mode.load(Ordering::Relaxed) {
+                            console_tx.send(MsgType::Console(ch)).unwrap();
+                        }
+                    } else {
+                        console_tx.send(MsgType::Console(ch)).unwrap();
                     }
                 }
                 Ok(MsgType::Exit) => {

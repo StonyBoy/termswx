@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-15 17:54
+//Time-Stamp: 2024-Sep-23 20:27
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -161,6 +161,7 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
     let console_rx = termswx.get_console_rx();
     let script_rx = termswx.get_script_rx();
     let script_pid = termswx.get_script_pid();
+    let binary_mode = termswx.get_binary_mode();
 
     // Process keyboard input
     let thropts = cmdopts.clone();
@@ -226,6 +227,7 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                                 arg: arg.to_string().clone(),
                                 envir: build_script_envir(&thropts, &fileconfig),
                                 in_prompt: in_prompt.clone(),
+                                binary_mode: binary_mode.clone(),
                             };
                             execute_script(cmd);
                         }
@@ -292,7 +294,12 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                     break;
                 }
             }
-            io::stdout().flush().unwrap();
+            match io::stdout().flush() {
+                Ok(_) => (),
+                Err(e) => {
+                    error!("Error: {e:?}");
+                }
+            }
         }
     });
     Ok(thr)

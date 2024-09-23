@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-12 11:17
+//Time-Stamp: 2024-Sep-23 16:54
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Send and Receive bytes to/from the serial device and the TermSwitch
@@ -61,16 +61,15 @@ fn run_serial(swi_tx: &Sender<MsgType>, ser_rx: &Receiver<MsgType>, start: Insta
     let handle = thread::spawn(move || {
         trace!("Wait for serial input");
         loop {
-            let mut serial_buf = vec![0; 32];
+            let mut serial_buf = vec![0; 1024];
             match rxport.read(serial_buf.as_mut_slice()) {
                 Ok(cnt) => {
                     trace!("Received: {cnt}");
-                    for val in serial_buf.iter() {
-                        if *val != 0 {
-                            trace!("Send: {val:#02x} '{}''", *val as char);
-                            let msg = MsgType::Serial(*val);
-                            switch_tx.send(msg).unwrap();
-                        }
+                    for idx in 0..cnt {
+                        let val: u8 = serial_buf[idx];
+                        trace!("Send: {val:#02x} '{}''", val as char);
+                        let msg = MsgType::Serial(val);
+                        switch_tx.send(msg).unwrap();
                     }
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::TimedOut => (),
