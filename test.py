@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Steen Hegelund
-# Time-Stamp: 2024-Sep-17 14:56
+# Time-Stamp: 2024-Sep-19 23:02
 # vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=python :
 
 import argparse
@@ -10,7 +10,7 @@ import sys
 import os
 import signal
 import time
-import termswx
+from termswx import LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo
 
 
 def parse_arguments():
@@ -24,7 +24,7 @@ def parse_arguments():
     return parser.parse_args()
 
 
-class Commands(termswx.LinuxLoginMixin, termswx.LoggerMixin, termswx.MenuMixin, termswx.TerminalIo):
+class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
     date_rex = re.compile(r'\S+,\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+\+0000')
 
     def __init__(self):
@@ -35,16 +35,12 @@ class Commands(termswx.LinuxLoginMixin, termswx.LoggerMixin, termswx.MenuMixin, 
     def banner(self, idx, total):
         text = f'This is iteration {idx} of {total}'
         self.alert(text)
-        self.log_responses.append(text)
-
-    def set_date(self):
-        cmd = f'date {time.strftime("%Y-%m-%d%H:%M:%S", time.localtime())}'
-        self.cmd(cmd)
+        self.add_log('Iteration', f'{idx} of {total}')
 
     def get_date(self):
         res = self.command('date -uR')
         self.alert(f'date: {res}')
-        self.log_responses.append((res, self.parse_date(res)))
+        self.add_log('date', (res, self.parse_date(res)))
 
     def parse_date(self, lines):
         if len(lines) > 0:
@@ -66,7 +62,7 @@ class Commands(termswx.LinuxLoginMixin, termswx.LoggerMixin, termswx.MenuMixin, 
             mt = if_rex.match(line)
             if mt:
                 iface = f'Interface {mt[2]} {mt[3]}'
-                self.log_responses.append(iface)
+                self.add_log('interface', iface)
 
     def get_list(self):
         self.cmd("ls -lah")
@@ -77,7 +73,7 @@ class Commands(termswx.LinuxLoginMixin, termswx.LoggerMixin, termswx.MenuMixin, 
         if 'date: invalid date' in res[0]:
             cmd = f'date {time.strftime("%m%d%H%M%Y", time.localtime())}'
             res = self.command(cmd)
-        self.log_responses.append((cmd, res))
+        self.add_log(cmd, res)
 
     def choice(self):
         self.alert('Do you want to continue?> ')
@@ -95,9 +91,12 @@ class Commands(termswx.LinuxLoginMixin, termswx.LoggerMixin, termswx.MenuMixin, 
             self.get_meminfo()
             cnt += 1
 
+        env = []
         for elem in os.environ.items():
-            self.log_responses.append(str(elem))
+            env.append(str(elem))
 
+        self.add_log('hostenv', env)
+        self.add_log('python', sys.version)
         self.save()
 
 
