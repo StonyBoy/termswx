@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-23 20:32
+//Time-Stamp: 2024-Sep-24 20:56
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Run python scripts
@@ -28,6 +28,7 @@ pub struct ScriptCommand {
     pub tx: Sender<MsgType>,
     pub rx: Receiver<MsgType>,
     pub pid: Arc::<AtomicU32>,
+    pub python: String,
     pub envir: HashMap<String, String>,
     pub in_prompt: Arc::<AtomicBool>,
     pub binary_mode: Arc::<AtomicBool>,
@@ -271,7 +272,7 @@ pub fn execute_script(cmd: ScriptCommand) {
     // Replace "~" with the home folder for script paths
     let narg = subst_home(&cmd.arg);
     let args = narg.split(" ");
-    let res = process::Command::new("python3")
+    let res = process::Command::new(cmd.python.clone())
         .arg("-u") // Unbuffered IO - Really important!
         .args(args)
         .envs(cmd.envir.clone())

@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-23 20:27
+//Time-Stamp: 2024-Sep-24 20:55
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -225,6 +225,7 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                                 rx: script_rx.clone(),
                                 pid: script_pid.clone(),
                                 arg: arg.to_string().clone(),
+                                python: fileconfig.get_python(),
                                 envir: build_script_envir(&thropts, &fileconfig),
                                 in_prompt: in_prompt.clone(),
                                 binary_mode: binary_mode.clone(),

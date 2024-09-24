@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-15 17:51
+//Time-Stamp: 2024-Sep-24 20:51
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Maintain configuration file and parse keyboard shortcuts
@@ -132,6 +132,15 @@ impl FileConfig {
         }
         None
     }
+
+    pub fn get_python(&self) -> String {
+        if let Some(toml::Value::Table(scripting)) = self.config.get("scripting") {
+            if let Some(toml::Value::String(pyexe)) = scripting.get("python") {
+                return pyexe.to_string();
+            }
+        }
+        String::from("/usr/bin/python3")
+    }
 }
 
 // Write default config in toml file an return it for immediate use
@@ -142,6 +151,8 @@ fn create_new_config(filename: &PathBuf, config_version: i64) -> toml::Table {
             "version" = config_version
         [environment]
             "TERM" = "xterm"
+        [scripting]
+            "python" = "python3"
         [keynames]
             "F1" = "\x1bOP"
             "F2" = "\x1bOQ"
