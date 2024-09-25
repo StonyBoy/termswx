@@ -1,7 +1,7 @@
 #!/usr/bin/env python3.11
 
 # Steen Hegelund
-# Time-Stamp: 2024-Sep-24 20:03
+# Time-Stamp: 2024-Sep-25 21:27
 # vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=python :
 
 import sys
@@ -17,7 +17,9 @@ ALERT = 0x11
 MENU_TITLE = 0x12
 MENU_ITEM = 0x13
 MENU_PROMPT = 0x14
-MENU_SELECTED = 0x15
+USER_TEXT = 0x15
+BINARY_ON = 0x16
+BINARY_OFF = 0x17
 
 
 def parse_arguments():
