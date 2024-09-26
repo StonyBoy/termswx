@@ -127,7 +127,7 @@ class LoggerMixin:
 
     def save(self):
         with open(self.log_filename, 'at') as fobj:
-            fobj.write(json.dumps(self.log_responses, indent=4, sort_keys=True))
+            fobj.write(json.dumps(self.log_responses, indent=4, sort_keys=True) + '\n')
         self.alert(f'Saving {self.log_filename}')
         return self.log_filename
 
@@ -140,6 +140,11 @@ class LoggerMixin:
     def add_log(self, req, res):
         self.log_responses.append((req, res))
         return res
+
+    def flush_log(self):
+        with open(self.log_filename, 'at') as fobj:
+            fobj.write(json.dumps(self.log_responses, indent=4, sort_keys=True) + '\n')
+        self.log_responses = []
 
     def cmd(self, line):
         res = self.command(line)
