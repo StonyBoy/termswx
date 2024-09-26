@@ -26,6 +26,23 @@ python3 if you want to run python scripts.
 Follow the instructions at <https://www.rust-lang.org/tools/install> to install
 rustup and then use that to install the development system.
 
+## Supported platforms
+
+The Terminal Switch has been tested on the following platforms:
+
+| OS | Version | Rust Version | Python Version |
+| :---- | :---- | :---- | :---- |
+| Linux | Arch Linux | 1.81.0 | 3.11 |
+| Linux | Ubuntu 22.04 | 1.81.0 | 3.11 |
+| macOS | Sonoma 14.6.1 | 1.81.0 | 3.11 |
+| macOS | Sequoia 15.0 | 1.81.0 | 3.11 |
+| Windows | 10 Home 22H2 | 1.81.0 | 3.12 |
+| Windows | 11 Pro 23H2 | 1.81.0 | 3.12 |
+
+The serial connection was done with a "Future Technology Devices International,
+Ltd FT232 Serial (UART) IC" USB/UART cable connected to a BeagleBone Black and a
+Raspberry Pi 4 Compute Module as well as other Linux Embedded devices.
+
 ## Building the executable
 
 You build the `termswx`executable with this command:
