@@ -26,11 +26,23 @@ def parse_arguments():
 
 class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
     date_rex = re.compile(r'\S+,\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s+\+0000')
+    meminfo_rex = re.compile(r'(MemFree):\s+(\S+)\s+(\S+)')
+    if_rex = re.compile(r'(\S+):\s+(\S+):\s+\<(\S+)\>')
 
     def __init__(self):
         super().__init__()
         self.log('test.log')
         self.erase()
+        self.add_log('python_version', sys.version)
+        self.add_log('python_executable', sys.executable)
+
+    def set_date(self):
+        cmd = f'date {time.strftime("%Y-%m-%d%H:%M:%S", time.localtime())}'
+        res = self.command(cmd)
+        if 'date: invalid date' in res[0]:
+            cmd = f'date {time.strftime("%m%d%H%M%Y", time.localtime())}'
+            res = self.command(cmd)
+        self.add_log(cmd, res)
 
     def banner(self, idx, total):
         text = f'This is iteration {idx} of {total}'
@@ -50,37 +62,29 @@ class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
         return None
 
     def get_meminfo(self):
-        self.cmd('cat /proc/meminfo')
+        res = self.command('cat /proc/meminfo')
+        self.add_log('meminfo', self.parse_meminfo(res))
+
+    def parse_meminfo(self, lines):
+        for line in lines:
+            mt = self.meminfo_rex.match(line)
+            if mt:
+                return (mt[1], mt[2], mt[3])
+        return None
 
     def get_uname(self):
         self.cmd("uname -a")
 
     def get_interfaces(self):
         res = self.command('ip -c addr show')
-        if_rex = re.compile(r'(\S+):\s+(\S+):\s+\<(\S+)\>')
         for line in res:
-            mt = if_rex.match(line)
+            mt = self.if_rex.match(line)
             if mt:
                 iface = f'Interface {mt[2]} {mt[3]}'
                 self.add_log('interface', iface)
 
     def get_list(self):
         self.cmd("ls -lah")
-
-    def set_date(self):
-        cmd = f'date {time.strftime("%Y-%m-%d%H:%M:%S", time.localtime())}'
-        res = self.command(cmd)
-        if 'date: invalid date' in res[0]:
-            cmd = f'date {time.strftime("%m%d%H%M%Y", time.localtime())}'
-            res = self.command(cmd)
-        self.add_log(cmd, res)
-
-    def choice(self):
-        self.alert('Do you want to continue?> ')
-        res = self.read_line(60.0)
-        self.alert(f'Got response {res}')
-        if 'yes' not in res.lower():
-            sys.exit(0)
 
     def run(self, count):
         cnt = 1
@@ -89,6 +93,7 @@ class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
             self.get_list()
             self.get_date()
             self.get_meminfo()
+            self.flush_log()
             cnt += 1
 
         env = []
@@ -96,7 +101,6 @@ class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
             env.append(str(elem))
 
         self.add_log('hostenv', env)
-        self.add_log('python', sys.version)
         self.save()
 
 
