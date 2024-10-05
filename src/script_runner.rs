@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-24 20:56
+//Time-Stamp: 2024-Oct-04 14:58
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Run python scripts
@@ -23,6 +23,14 @@ use std::sync::{atomic::AtomicU32, atomic::AtomicBool, atomic::Ordering};
 use std::collections::HashMap;
 use sysinfo::{Pid, Signal, System};
 
+const SCRIPT_ALERT: char = '\u{11}';
+const SCRIPT_MENU_TITLE: char = '\u{12}';
+const SCRIPT_MENU_ITEM: char = '\u{13}';
+const SCRIPT_MENU_PROMPT: char = '\u{14}';
+const SCRIPT_USER_TEXT: char = '\u{15}';
+const SCRIPT_BINARY_ON: char = '\u{16}';
+const SCRIPT_BINARY_OFF: char = '\u{17}';
+
 pub struct ScriptCommand {
     pub arg: String,
     pub tx: Sender<MsgType>,
@@ -41,9 +49,10 @@ pub fn signal(u32pid: u32) {
     info!("Kill script process id: {pid}");
     let s = System::new_all();
     if let Some(process) = s.process(Pid::from(pid)) {
-        if process.kill_with(Signal::Kill).is_none() {
-            println!("This signal isn't supported on this platform");
-        }
+        #[cfg(target_os = "windows")]
+        process.kill_with(Signal::Kill);
+        #[cfg(any(target_os = "linux", target_os = "macos"))]
+        process.kill_with(Signal::Term);
     }
 }
 
@@ -221,30 +230,30 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
                     let text = String::from(&buf[1..(buf.len()-1)]);
                     terminal::disable_raw_mode().unwrap();
                     match prompt {
-                        '\u{11}' => {
+                        SCRIPT_ALERT => {
                             println!("\n{}", text.with(Color::White).on(Color::DarkMagenta));
                         }
-                        '\u{12}' => {
+                        SCRIPT_MENU_TITLE => {
                             sleep(Duration::from_millis(200));
                             println!("\n\n{}", text.with(Color::White).on(Color::Green));
                         }
-                        '\u{13}' => {
+                        SCRIPT_MENU_ITEM => {
                             println!("{}", text.with(Color::Black).on(Color::DarkYellow));
                         }
-                        '\u{14}' => {
+                        SCRIPT_MENU_PROMPT => {
                             in_prompt.store(true, Ordering::Relaxed);
                             print!("{}", text.with(Color::Black).on(Color::DarkGreen));
                             io::stdout().flush().unwrap();
                         }
-                        '\u{15}' => {
-                            println!("\n{}", text.with(Color::White).on(Color::Green));
+                        SCRIPT_USER_TEXT => {
+                            println!("{}", text.with(Color::White).on(Color::DarkBlue));
                         }
-                        '\u{16}' => {
+                        SCRIPT_BINARY_ON => {
                             println!("\nbinary: on");
                             info!("binary on");
                             binary_mode.store(true, Ordering::Relaxed);
                         }
-                        '\u{17}' => {
+                        SCRIPT_BINARY_OFF => {
                             println!("\nbinary: off");
                             info!("binary off");
                             binary_mode.store(false, Ordering::Relaxed);

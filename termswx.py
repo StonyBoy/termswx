@@ -2,7 +2,7 @@
 
 # Steen Hegelund
 # Read and write from stdin/stdout and send commands and receive responses
-# Time-Stamp: 2024-Sep-25 21:27
+# Time-Stamp: 2024-Oct-04 10:20
 # vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=python :
 
 import re
@@ -14,13 +14,13 @@ import queue
 import threading
 
 # Stderr Byte Prefixes
-ALERT = 0x11
-MENU_TITLE = 0x12
-MENU_ITEM = 0x13
-MENU_PROMPT = 0x14
-USER_TEXT = 0x15
-BINARY_ON = 0x16
-BINARY_OFF = 0x17
+ALERT = chr(0x11)
+MENU_TITLE = chr(0x12)
+MENU_ITEM = chr(0x13)
+MENU_PROMPT = chr(0x14)
+USER_TEXT = chr(0x15)
+BINARY_ON = chr(0x16)
+BINARY_OFF = chr(0x17)
 
 
 class TerminalIo:
@@ -117,7 +117,10 @@ class TerminalIo:
         return self.read_response(waitfor, timeout, keep)
 
     def alert(self, line):
-        print(f'\x11{line}', file=sys.stderr)
+        print(f'{ALERT}{line}', file=sys.stderr)
+
+    def notice(self, line):
+        print(f'{USER_TEXT}{line}', file=sys.stderr)
 
 
 class LoggerMixin:
@@ -174,18 +177,18 @@ class LinuxLoginMixin:
 
 class MenuMixin:
     def menu_title(self, text):
-        print(f'\x12{text}', file=sys.stderr)
+        print(f'{MENU_TITLE}{text}', file=sys.stderr)
 
     def menu_item(self, text):
-        print(f'\x13{text}', file=sys.stderr)
+        print(f'{MENU_ITEM}{text}', file=sys.stderr)
 
     def prompt(self, text):
-        print(f'\x14{text}', file=sys.stderr)
+        print(f'{MENU_PROMPT}{text}', file=sys.stderr)
 
     def selected(self, text):
-        print(f'\x15{text}', file=sys.stderr)
+        print(f'{USER_TEXT}{text}', file=sys.stderr)
 
-    def show_menu(self, menu, prompt=None, title='=== Menu ==='):
+    def show_menu(self, menu, prompt=None, title='=== Menu ===', timeout=60.0):
         self.menu_title(title)
         for (idx, (text, method, *args)) in enumerate(menu):
             self.menu_item(f'{idx + 1}: {text}')
@@ -194,7 +197,7 @@ class MenuMixin:
         else:
             self.prompt('Select > ')
         self.flush_stdin(0.5)
-        res = self.read_line(60.0)
+        res = self.read_line(timeout)
         for (idx, (text, method, *args)) in enumerate(menu):
             if res == str(idx + 1):
                 self.selected(f'Starting: {text}')
