@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-24 20:55
+//Time-Stamp: 2024-Oct-05 11:18
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -19,7 +19,7 @@ use std::env;
 use crossterm::terminal;
 use crossterm::execute;
 use crossterm::style::{Color, Stylize};
-use std::sync::{Arc, atomic::AtomicBool, atomic::Ordering};
+use std::sync::{Arc, atomic::AtomicBool, atomic::AtomicI8, atomic::Ordering};
 use std::collections::HashMap;
 
 
@@ -77,7 +77,7 @@ pub fn show_error(msg: Vec<String>) {
 
 
 // Use the alternate screen for output
-fn show_help(cmdopts: &CmdLineConfig, fileconfig: &FileConfig) {
+fn show_help(cmdopts: &CmdLineConfig, fileconfig: &FileConfig, clients: &Arc<AtomicI8>) {
     terminal::disable_raw_mode().unwrap();
     execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen).unwrap();
     let size = crossterm::terminal::size().unwrap();
@@ -89,6 +89,7 @@ fn show_help(cmdopts: &CmdLineConfig, fileconfig: &FileConfig) {
         println!("{}", format!("  Server portnumber: {}", cmdopts.portnum));
     }
     println!("{}", format!("  Connected to: {:?}", cmdopts.device));
+    println!("{}", format!("  Remote clients: {} of maximum {}", clients.load(Ordering::Relaxed), cmdopts.maxclients));
     let configfile = cmdopts.config_file.clone().into_os_string().into_string().unwrap();
     println!("{}", format!("  Tracefile: {}", cmdopts.tracefile));
     println!("{}", format!("  Configurationfile: {}", configfile));
@@ -162,6 +163,7 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
     let script_rx = termswx.get_script_rx();
     let script_pid = termswx.get_script_pid();
     let binary_mode = termswx.get_binary_mode();
+    let clients = termswx.get_clients();
 
     // Process keyboard input
     let thropts = cmdopts.clone();
@@ -173,7 +175,7 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
             trace!(" - chars {}", dump_keyseq(&buffer[0..cnt]));
             if let Some(cmd) = fileconfig.find_shortcut(&buffer, cnt) {
                 match cmd {
-                    TermCommand::HelpMenu => show_help(&thropts, &fileconfig),
+                    TermCommand::HelpMenu => show_help(&thropts, &fileconfig, &clients),
                     TermCommand::Nop => (),
                     TermCommand::Quit => {
                         trace!("Console Quit");

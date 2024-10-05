@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-24 20:31
+//Time-Stamp: 2024-Oct-04 20:37
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 // Configuration file stored as ~/.config/termswx/config.toml
@@ -39,6 +39,7 @@ pub struct CmdLineConfig {
     device: PathBuf,
     baudrate: u32,
     portnum: u16,
+    maxclients: i8,
     server: bool,
     tracefile: String,
     keeprunning: bool,
@@ -71,6 +72,13 @@ fn parse_args() -> OptionParser<CmdLineConfig> {
         .argument::<u16>("PORTNUM")
         .guard(|&p| p > 1024, "PORTNUM must be greater than 1024")
         .fallback(0);
+
+    let maxclients = short('m')
+        .long("maxclients")
+        .help("Maximum number of remote clients")
+        .argument::<i8>("MAXCLIENTS")
+        .fallback(1)
+        .display_fallback();
 
     let keeprunning = short('k')
         .long("keeprunning")
@@ -127,6 +135,7 @@ fn parse_args() -> OptionParser<CmdLineConfig> {
     construct!(CmdLineConfig {
         baudrate,
         portnum,
+        maxclients,
         server,
         keeprunning,
         tracefile,
@@ -224,7 +233,7 @@ fn main() {
         network_service::open_connection(&mut termswx, cmdopts.device, cmdopts.start);
     } else {
         if cmdopts.portnum > 0 {
-            network_service::start_server(&mut termswx, cmdopts.portnum, cmdopts.start);
+            network_service::start_server(&mut termswx, cmdopts.portnum, cmdopts.maxclients, cmdopts.start);
         }
         serial_service::open_device(&mut termswx, cmdopts.device, cmdopts.baudrate, cmdopts.keeprunning, cmdopts.start);
     }

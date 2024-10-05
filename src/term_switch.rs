@@ -1,11 +1,11 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-23 20:38
+//Time-Stamp: 2024-Oct-05 11:25
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 use log::{error, trace, info};
 use std::thread;
 use crossbeam_channel::{unbounded, Sender, Receiver};
-use std::sync::{Arc, atomic::AtomicU32, atomic::AtomicBool, atomic::Ordering};
+use std::sync::{Arc, atomic::AtomicU32, atomic::AtomicBool, atomic::AtomicI8, atomic::Ordering};
 use std::net::SocketAddr;
 
 // Messages sent via channels between threads
@@ -20,6 +20,7 @@ pub enum MsgType {
     SerialBreak,
     ScriptAlertResponse(u8),
     ScriptDone,
+    NetClientExit(SocketAddr),
     Exit,
 }
 
@@ -41,6 +42,8 @@ pub struct TermSwitch {
 
     script_pid: Arc<AtomicU32>,
     binary_mode: Arc<AtomicBool>,
+
+    clients: Arc<AtomicI8>,
 
     stop: bool,
 }
@@ -72,6 +75,9 @@ impl TermSwitch {
     pub fn get_binary_mode(&self) -> Arc::<AtomicBool> {
         self.binary_mode.clone()
     }
+    pub fn get_clients(&self) -> Arc::<AtomicI8> {
+        self.clients.clone()
+    }
 }
 
 
@@ -92,11 +98,13 @@ pub fn start(server: bool) -> TermSwitch {
         script_rx,
         script_pid: Arc::new(AtomicU32::new(0)),
         binary_mode: Arc::new(AtomicBool::new(false)),
+        clients: Arc::new(AtomicI8::new(0)),
         stop: false,
     };
 
     let script_pid = termswx.script_pid.clone();
     let binary_mode = termswx.binary_mode.clone();
+    let clients = termswx.clients.clone();
 
     // Exchange messages
     thread::spawn(move || {
@@ -114,13 +122,18 @@ pub fn start(server: bool) -> TermSwitch {
                         addr: addr.clone(),
                         tx,
                     });
+
+                    info!("Add: {}", addr);
+                    clients.store(net_clients.len().try_into().expect("Get number of clients"), Ordering::Relaxed);
                     network_tx.send(MsgType::Added(rx)).unwrap();
                 }
                 Ok(MsgType::Added(_)) => (),
                 Ok(MsgType::Remove(addr)) => {
                     for (idx, elem)  in net_clients.iter().enumerate() {
                         if elem.addr == addr {
+                            info!("Remove: {}", addr);
                             net_clients.remove(idx);
+                            clients.store(net_clients.len().try_into().expect("Get number of clients"), Ordering::Relaxed);
                             break;
                         }
                     }
@@ -149,6 +162,15 @@ pub fn start(server: bool) -> TermSwitch {
                         }
                     } else {
                         console_tx.send(MsgType::Console(ch)).unwrap();
+                    }
+                }
+                Ok(MsgType::NetClientExit(addr)) => {
+                    info!("NetClientExit: {}", addr);
+                    for elem  in net_clients.iter() {
+                        if elem.addr == addr {
+                            elem.tx.send(MsgType::Exit).unwrap();
+                            break;
+                        }
                     }
                 }
                 Ok(MsgType::Exit) => {
