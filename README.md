@@ -81,9 +81,9 @@ that you have installed `termswx` in your path.
 
         termswx /dev/ttyUSB0
 
-* Connect to serial port /dev/ttyUSB1 and allow clients on TCP port 7273
+* Connect to serial port /dev/ttyUSB1 and allow 2 clients on TCP port 7273
 
-        termswx /dev/ttyUSB1 -p 7273
+        termswx /dev/ttyUSB1 -p 7273 -m 2
 
 * Connect to a termswx server name orion remotely on port 7273
 
@@ -155,6 +155,35 @@ the script will end.
 If a script gets stuck waiting for response, you can cancel the execution using
 the `ctrl+x` key combination.
 
+### Getting help
+
+Use the `--help` option to get the help screen:
+
+    TermSWX - The Serial Terminal Switch
+
+    Usage: termswx [-b=BAUDRATE] [-p=PORTNUM] [-m=MAXCLIENTS] [-s] [-k] [-t=FILENAME] [-v]... [-e] [-V]
+    [<DEVICE/HOST>]
+
+    Available positional items:
+        <DEVICE/HOST>            Device path /dev/xxx or hostname:portnum
+
+    Available options:
+        -b, --baudrate=BAUDRATE  Set baudrate
+                                 [default: 115200]
+        -p, --portnum=PORTNUM    Run TCP Server listning on port
+        -m, --maxclients=MAXCLIENTS  Maximum number of remote clients
+                                 [default: 1]
+        -s, --server             Activate quiet TCP Server mode (needs -p)
+        -k, --keeprunning        Continue even if the port even disappears
+        -t, --trace=FILENAME     Storing the termswx trace output
+        -v, --verbose            Increase the verbosity
+                                 You can increase this up to 5 times
+        -e, --enumerate          List available serial ports
+        -V, --version            Show version information
+        -h, --help               Prints help information
+
+This shows all the available options and positional arguments.
+
 # Configuration
 
 The first time you run `termswx` the program will create a default configuration
@@ -168,7 +197,7 @@ This is the content of the default configuration file:
     TERM = "xterm"
 
     [general]
-    version = 5
+    version = 6
 
     [keymap]
     "Ctrl+b" = "break"
@@ -232,6 +261,9 @@ This is the content of the default configuration file:
     Pause = "\u001B[57362u"
     Print = "\u001B[57361u"
     Scroll = "\u001B[57359u"
+
+    [scripting]
+    python = "python3"
 
 The most interesting section is the `[keymap]` section where you can configure
 which key combinations activate which commands.
