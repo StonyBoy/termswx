@@ -129,7 +129,7 @@ fn serve_client(addr: SocketAddr, client_rx: Receiver<MsgType>, mut stream_rx: T
                     let now = chrono::offset::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
                     let text = format!("Client connection closed at {} from {}", now, addr);
                     trace!("{}", text);
-                    println!("\r\n{}", text.with(Color::White).on(Color::Black));
+                    println!("\r{}\r", text.with(Color::White).on(Color::Black));
                     sw_tx.send(MsgType::NetClientExit(addr)).unwrap();
                     break;
                 }
@@ -174,13 +174,13 @@ pub fn start_server(termswx: &mut TermSwitch, portnum: u16, maxclients: i8, star
                                 let text = format!("Client rejected at {} from {}: Maximum clients connected: {}",
                                     now, addr, maxclients);
                                 trace!("{}", text);
-                                println!("\r\n{}", text.with(Color::White).on(Color::Black));
+                                println!("\r{}\r", text.with(Color::White).on(Color::Black));
                                 continue;
                             }
 
                             let text = format!("\r\nClient connection established at {} from {}", now, addr);
                             trace!("{}", text);
-                            println!("\r\n{}", text.with(Color::White).on(Color::Black));
+                            println!("\r{}\r", text.with(Color::White).on(Color::Black));
 
                             // The thread must exit to close the network_rx channel
                             // or there will be multiple receivers fighting for the same events
