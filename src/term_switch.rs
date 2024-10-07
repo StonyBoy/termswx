@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-05 11:25
+//Time-Stamp: 2024-Oct-07 18:11
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 use log::{error, trace, info};
@@ -140,7 +140,12 @@ pub fn start(server: bool) -> TermSwitch {
                 }
                 Ok(MsgType::Console(ch)) => {
                     trace!("console: {:#02x} '{}'", ch, ch as char);
-                    serial_tx.send(MsgType::Serial(ch)).unwrap();
+                    match serial_tx.send(MsgType::Serial(ch)) {
+                        Ok(_) => (),
+                        Err(_) => {
+                            error!("Client connection is dead");
+                        }
+                    }
                 }
                 Ok(MsgType::SerialClose) => {
                     trace!("serial close");

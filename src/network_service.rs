@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-05 11:36
+//Time-Stamp: 2024-Oct-07 18:28
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Send and Receive via a TCP network connection.
@@ -137,7 +137,12 @@ fn serve_client(addr: SocketAddr, client_rx: Receiver<MsgType>, mut stream_rx: T
                     for idx in 0..cnt {
                         trace!("input: {:#02x} {}", buffer[idx], buffer[idx] as char);
                         let msg = MsgType::Console(buffer[idx]);
-                        sw_tx.send(msg).unwrap();
+                        match sw_tx.send(msg) {
+                            Ok(_) => (),
+                            Err(_) => {
+                                error!("Cannot send network characters to term_switch");
+                            }
+                        }
                     }
                 }
                 Err(e) => {
@@ -186,7 +191,12 @@ pub fn start_server(termswx: &mut TermSwitch, portnum: u16, maxclients: i8, star
                             // or there will be multiple receivers fighting for the same events
 
                             // Get a client connection channel
-                            switch_tx.send(MsgType::Add(addr)).unwrap();
+                            match switch_tx.send(MsgType::Add(addr)) {
+                                Ok(_) => (),
+                                Err(_) => {
+                                    error!("Could not send client address to term_switch");
+                                }
+                            }
                             match network_rx.recv() {
                                 Ok(MsgType::Added(client_rx)) => {
                                     serve_client(addr, client_rx, stream_rx, &switch_tx);

@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-05 11:18
+//Time-Stamp: 2024-Oct-07 18:22
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -270,7 +270,12 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                 } else {
                     for idx in 0..cnt {
                         let val: u8 = buffer[idx];
-                        switch_tx.send(MsgType::Console(val)).unwrap();
+                        match switch_tx.send(MsgType::Console(val)) {
+                            Ok(_) => (),
+                            Err(_) => {
+                                error!("Cannot send console input to term_switch");
+                            }
+                        }
                     }
                 }
             }
