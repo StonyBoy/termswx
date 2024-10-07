@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-23 16:54
+//Time-Stamp: 2024-Oct-07 15:32
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Send and Receive bytes to/from the serial device and the TermSwitch
@@ -41,9 +41,15 @@ fn run_serial(swi_tx: &Sender<MsgType>, ser_rx: &Receiver<MsgType>, start: Insta
                     }
                 }
                 Ok(MsgType::SerialBreak) => {
-                    txport.set_break().unwrap();
-                    thread::sleep(Duration::from_millis(100));
-                    txport.clear_break().unwrap();
+                    match txport.set_break() {
+                        Ok(_) => {
+                            thread::sleep(Duration::from_millis(100));
+                            txport.clear_break().unwrap();
+                        }
+                        Err(_) => {
+                            println!("\rNo break support on this serial interface\r");
+                        }
+                    }
                 }
                 Ok(MsgType::SerialClose) => {
                     trace!("Serial Close");
