@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Mar-15 10:59
+//Time-Stamp: 2024-Oct-11 11:16
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Log program trace using log4rs
@@ -37,7 +37,7 @@ fn to_levelfilter(loglevel: usize) -> LevelFilter {
 pub fn init(file_path: String, verbose: usize) {
     let filter = to_levelfilter(verbose);
     let logfile = FileAppender::builder()
-        .encoder(Box::new(PatternEncoder::new("{d(%Y-%m-%d %H:%M:%S)}: {M} - {l} - {m}\n")))
+        .encoder(Box::new(PatternEncoder::new("{d(%Y-%m-%d %H:%M:%S%.3f)}: {M} - {l} - {m}\n")))
         .build(file_path)
         .unwrap();
 
