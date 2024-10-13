@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-07 18:22
+//Time-Stamp: 2024-Oct-10 10:41
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -290,7 +290,12 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                 Ok(MsgType::Console(ch)) => {
                     buffer.clear();
                     buffer.push(ch);
-                    io::stdout().write(&buffer).unwrap();
+                    match io::stdout().write(&buffer) {
+                        Ok(_) => (),
+                        Err(e) => {
+                            error!("Receive Console Error: {e:?}");
+                        }
+                    }
                 }
                 Ok(MsgType::Exit) => {
                     trace!("Console Exit received");
@@ -298,14 +303,13 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                 }
                 Ok(_) => (),
                 Err(e) => {
-                    error!("Error: {e:?}");
-                    break;
+                    error!("Receive Error: {e:?}");
                 }
             }
             match io::stdout().flush() {
                 Ok(_) => (),
                 Err(e) => {
-                    error!("Error: {e:?}");
+                    error!("Flush Error: {e:?}");
                 }
             }
         }
