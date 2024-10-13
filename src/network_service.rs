@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-07 18:28
+//Time-Stamp: 2024-Oct-11 11:37
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Send and Receive via a TCP network connection.
@@ -108,7 +108,6 @@ fn serve_client(addr: SocketAddr, client_rx: Receiver<MsgType>, mut stream_rx: T
                 }
                 Ok(MsgType::Exit) => {
                     trace!("Network Exit received");
-                    sw_tx.send(MsgType::Remove(addr)).unwrap();
                     break;
                 }
                 Ok(_) => (),
@@ -120,7 +119,6 @@ fn serve_client(addr: SocketAddr, client_rx: Receiver<MsgType>, mut stream_rx: T
         }
     });
 
-    let sw_tx = switch_tx.clone();
     thread::spawn(move || {
         let mut buffer = [0; 10];
         loop {
@@ -140,15 +138,22 @@ fn serve_client(addr: SocketAddr, client_rx: Receiver<MsgType>, mut stream_rx: T
                         match sw_tx.send(msg) {
                             Ok(_) => (),
                             Err(_) => {
-                                error!("Cannot send network characters to term_switch");
+                                let now = chrono::offset::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+                                let text = format!("Receive blocked, close connection at {} from {}", now, addr);
+                                error!("{}", text);
+                                println!("\r{}\r", text.with(Color::White).on(Color::Black));
+                                sw_tx.send(MsgType::NetClientExit(addr)).unwrap();
+                                return;
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    println!("{}", format!("\r\nReceive Error: {:?}\r", e).with(Color::White).on(Color::Black));
-                    trace!("Receive Error: Client connection closed, send exit");
-                    sw_tx.send(MsgType::Exit).unwrap();
+                    let now = chrono::offset::Local::now().format("%Y-%m-%d %H:%M:%S").to_string();
+                    let text = format!("Receive error: {:?}, close connection at {} from {}", e, now, addr);
+                    error!("{}", text);
+                    println!("\r{}\r", text.with(Color::White).on(Color::Black));
+                    sw_tx.send(MsgType::NetClientExit(addr)).unwrap();
                     break;
                 }
             }

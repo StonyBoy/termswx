@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-07 18:11
+//Time-Stamp: 2024-Oct-11 12:12
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 use log::{error, trace, info};
@@ -9,11 +9,10 @@ use std::sync::{Arc, atomic::AtomicU32, atomic::AtomicBool, atomic::AtomicI8, at
 use std::net::SocketAddr;
 
 // Messages sent via channels between threads
-#[derive(Debug)]
+#[derive(Debug,Clone)]
 pub enum MsgType {
     Add(SocketAddr),
     Added(Receiver<MsgType>),
-    Remove(SocketAddr),
     Console(u8),
     Serial(u8),
     SerialClose,
@@ -81,6 +80,49 @@ impl TermSwitch {
 }
 
 
+fn net_clients_send(net_clients: &mut Vec<NetClient>, prefix: &str, msg: MsgType, clients: Arc::<AtomicI8>) {
+    info!("{}: {:?}", prefix, msg);
+    let mut r_idx = net_clients.len();
+    for (pos, elem)  in net_clients.iter().enumerate()  {
+        match elem.tx.send(msg.clone()) {
+            Ok(_) => (),
+            Err(_) => {
+                error!("{}: Client {} gone at pos: {}", prefix, elem.addr, pos);
+                r_idx = pos;
+            }
+        }
+    }
+    if r_idx != net_clients.len() {
+        net_clients.remove(r_idx);
+        info!("{}: Client removed at pos: {}", prefix, r_idx);
+        clients.store(net_clients.len().try_into().expect("Get number of clients"), Ordering::Relaxed);
+    }
+}
+
+
+fn net_client_send(net_clients: &mut Vec<NetClient>, prefix: &str, msg: MsgType, addr: SocketAddr, clients: Arc::<AtomicI8>) {
+    info!("{}: {}", prefix, addr);
+    for (pos, elem)  in net_clients.iter().enumerate()  {
+        if elem.addr == addr {
+            match elem.tx.send(msg.clone()) {
+                Ok(_) => {
+                    info!("{}: Client {} removed at pos: {}", prefix, elem.addr, pos);
+                    net_clients.remove(pos);
+                    clients.store(net_clients.len().try_into().expect("Get number of clients"), Ordering::Relaxed);
+                    return;
+                },
+                Err(_) => {
+                    error!("{}: Client {} gone and removed at pos: {}", prefix, elem.addr, pos);
+                    net_clients.remove(pos);
+                    clients.store(net_clients.len().try_into().expect("Get number of clients"), Ordering::Relaxed);
+                    return;
+                }
+            }
+        }
+    }
+}
+
+
 // Start TermSwitch Service
 pub fn start(server: bool) -> TermSwitch {
     trace!("Starting Terminal Service");
@@ -128,16 +170,6 @@ pub fn start(server: bool) -> TermSwitch {
                     network_tx.send(MsgType::Added(rx)).unwrap();
                 }
                 Ok(MsgType::Added(_)) => (),
-                Ok(MsgType::Remove(addr)) => {
-                    for (idx, elem)  in net_clients.iter().enumerate() {
-                        if elem.addr == addr {
-                            info!("Remove: {}", addr);
-                            net_clients.remove(idx);
-                            clients.store(net_clients.len().try_into().expect("Get number of clients"), Ordering::Relaxed);
-                            break;
-                        }
-                    }
-                }
                 Ok(MsgType::Console(ch)) => {
                     trace!("console: {:#02x} '{}'", ch, ch as char);
                     match serial_tx.send(MsgType::Serial(ch)) {
@@ -158,7 +190,7 @@ pub fn start(server: bool) -> TermSwitch {
                 Ok(MsgType::Serial(ch)) => {
                     trace!("serial: {:#02x} '{}'", ch, ch as char);
                     if server {
-                        net_clients.iter().for_each(|elem| elem.tx.send(MsgType::Console(ch)).unwrap());
+                        net_clients_send(&mut net_clients, "Serial", MsgType::Console(ch), clients.clone());
                     }
                     if script_pid.load(Ordering::Relaxed) != 0 {
                         script_tx.send(MsgType::Console(ch)).unwrap();
@@ -170,19 +202,12 @@ pub fn start(server: bool) -> TermSwitch {
                     }
                 }
                 Ok(MsgType::NetClientExit(addr)) => {
-                    info!("NetClientExit: {}", addr);
-                    for elem  in net_clients.iter() {
-                        if elem.addr == addr {
-                            elem.tx.send(MsgType::Exit).unwrap();
-                            break;
-                        }
-                    }
+                    net_client_send(&mut net_clients, "NetClientExit", MsgType::Exit, addr, clients.clone());
                 }
                 Ok(MsgType::Exit) => {
                     info!("exit");
                     if server {
-                        info!("Send exit to net clients");
-                        net_clients.iter().for_each(|elem| elem.tx.send(MsgType::Exit).unwrap());
+                        net_clients_send(&mut net_clients, "Exit", MsgType::Exit, clients.clone());
                     } else {
                         info!("Send exit to console service");
                         console_tx.send(MsgType::Exit).unwrap();
