@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-10 10:41
+//Time-Stamp: 2024-Oct-17 10:02
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -288,6 +288,10 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
         loop {
             match console_rx.recv() {
                 Ok(MsgType::Console(ch)) => {
+                    #[cfg(target_os = "windows")]
+                    if ch >= 0x80 {
+                        continue;
+                    }
                     buffer.clear();
                     buffer.push(ch);
                     match io::stdout().write(&buffer) {
