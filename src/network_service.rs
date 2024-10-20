@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-11 11:37
+//Time-Stamp: 2024-Oct-18 14:04
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Send and Receive via a TCP network connection.
@@ -133,7 +133,7 @@ fn serve_client(addr: SocketAddr, client_rx: Receiver<MsgType>, mut stream_rx: T
                 }
                 Ok(cnt) => {
                     for idx in 0..cnt {
-                        trace!("input: {:#02x} {}", buffer[idx], buffer[idx] as char);
+                        trace!("input: {:#02x} {} from {}", buffer[idx], buffer[idx] as char, addr);
                         let msg = MsgType::Console(buffer[idx]);
                         match sw_tx.send(msg) {
                             Ok(_) => (),
