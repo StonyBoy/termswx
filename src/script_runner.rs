@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-04 14:58
+//Time-Stamp: 2024-Oct-17 11:13
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Run python scripts
@@ -14,7 +14,7 @@ use std::io::{self, BufRead, BufReader, Write, Read};
 use std::thread;
 use std::thread::sleep;
 use std::sync::Arc;
-use std::process::{self, Child};
+use std::process::{self, Child, ChildStdin};
 use std::time::Duration;
 use crossterm::terminal;
 use crossterm::style::{Color, Stylize};
@@ -56,6 +56,39 @@ pub fn signal(u32pid: u32) {
     }
 }
 
+
+// Write a character to script stdin via a buffer
+fn script_stdin_write(stdin: &mut ChildStdin, ch: u8, sleep: bool) -> bool {
+    let mut buffer = vec![0; 1];
+
+    buffer.clear();
+    buffer.push(ch);
+    loop {
+        match stdin.write(&buffer) {
+            Ok(0) => {
+                stdin.flush().unwrap();
+                if sleep {
+                    thread::sleep(Duration::from_millis(6));
+                }
+                return true;
+            }
+            Ok(_) => {
+                stdin.flush().unwrap();
+                if sleep {
+                    thread::sleep(Duration::from_micros(100));
+                }
+                return true;
+            }
+            Err(e) => {
+                error!("\rScript stdin write error: {e:?}");
+                break;
+            }
+        }
+    }
+    false
+}
+
+
 // Run a child process
 fn child_process(cmd: ScriptCommand, mut child: Child) {
     cmd.pid.store(child.id(), Ordering::Relaxed);
@@ -70,25 +103,13 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
     // Get serial output and send to the script stdin
     thread::spawn(move || {
         const CR: u8 = 0xd;
-        let mut buffer = vec![0; 1];
         loop {
             match cmd.rx.recv() {
                 Ok(MsgType::Console(mut ch)) => {
                     if binary_mode.load(Ordering::Relaxed) {
                         trace!("Script_rx (binary): {:#02x} '{}'", ch, ch as char);
-                        buffer.clear();
-                        buffer.push(ch);
-                        match stdin.write(&buffer) {
-                            Ok(0) => {
-                                stdin.flush().unwrap();
-                                trace!("Script_rx (binary): dropped {:#02x} '{}'", ch, ch as char);
-                            }
-                            Ok(_) => {
-                                stdin.flush().unwrap();
-                            }
-                            Err(e) => {
-                                error!("\rScript stdin write error: {e:?}");
-                            }
+                        if !script_stdin_write(&mut stdin, ch, false) {
+                            break;
                         }
                     } else {
                         trace!("Script_rx: {:#02x} '{}'", ch, ch as char);
@@ -104,48 +125,15 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
                         // Filter out ANSI escape sequence
                         while let Some(ch) = fsm.input(&mut ch) {
                             trace!("Script_rx_filtered: {:#02x} '{}'", ch, ch as char);
-                            buffer.clear();
-                            buffer.push(ch);
-                            loop {
-                                match stdin.write(&buffer) {
-                                    Ok(0) => {
-                                        stdin.flush().unwrap();
-                                        thread::sleep(Duration::from_millis(6));
-                                    }
-                                    Ok(_) => {
-                                        stdin.flush().unwrap();
-                                        thread::sleep(Duration::from_micros(100));
-                                        break;
-                                    }
-                                    Err(e) => {
-                                        error!("\rScript stdin write error: {e:?}");
-                                        break;
-                                    }
-                                }
+                            if !script_stdin_write(&mut stdin, ch, true) {
+                                break;
                             }
                         }
                     }
                 }
                 Ok(MsgType::ScriptAlertResponse(ch)) => {
-                    let mut buffer = vec![0; 1];
-                    buffer.clear();
-                    buffer.push(ch);
-                    loop {
-                        match stdin.write(&buffer) {
-                            Ok(0) => {
-                                stdin.flush().unwrap();
-                                thread::sleep(Duration::from_millis(6));
-                            }
-                            Ok(_) => {
-                                stdin.flush().unwrap();
-                                thread::sleep(Duration::from_micros(100));
-                                break;
-                            }
-                            Err(e) => {
-                                error!("\rScript stdin write error: {e:?}");
-                                break;
-                            }
-                        }
+                    if !script_stdin_write(&mut stdin, ch, true) {
+                        break;
                     }
                 }
                 Ok(MsgType::ScriptDone) => {
