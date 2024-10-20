@@ -1,11 +1,11 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-17 11:13
+//Time-Stamp: 2024-Oct-17 20:27
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Run python scripts
 
 use crate::term_switch::MsgType;
-use crate::ansi_seq::AnsiSeqState;
+use crate::ansi_filter::AnsiFilter;
 use crate::config::subst_home;
 use crate::console_service::show_error;
 
@@ -96,7 +96,7 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
     let mut stdout = child.stdout.take().expect("Get stdout");
     let stderr = child.stderr.take().expect("Get stderr");
     let (echo_tx, echo_rx) = unbounded();
-    let mut fsm = AnsiSeqState::new();
+    let mut filter = AnsiFilter::new();
     let binary_mode = cmd.binary_mode.clone();
     let endtext = format!("End {} with process id {}\r", cmd.arg, child.id());
 
@@ -105,7 +105,7 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
         const CR: u8 = 0xd;
         loop {
             match cmd.rx.recv() {
-                Ok(MsgType::Console(mut ch)) => {
+                Ok(MsgType::Console(ch)) => {
                     if binary_mode.load(Ordering::Relaxed) {
                         trace!("Script_rx (binary): {:#02x} '{}'", ch, ch as char);
                         if !script_stdin_write(&mut stdin, ch, false) {
@@ -123,7 +123,8 @@ fn child_process(cmd: ScriptCommand, mut child: Child) {
                             continue;
                         }
                         // Filter out ANSI escape sequence
-                        while let Some(ch) = fsm.input(&mut ch) {
+                        filter.input(ch);
+                        while let Some(ch) = filter.next() {
                             trace!("Script_rx_filtered: {:#02x} '{}'", ch, ch as char);
                             if !script_stdin_write(&mut stdin, ch, true) {
                                 break;

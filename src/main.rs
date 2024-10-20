@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-04 20:37
+//Time-Stamp: 2024-Oct-17 19:36
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 // Configuration file stored as ~/.config/termswx/config.toml
@@ -28,7 +28,7 @@ mod script_runner;
 mod serial_service;
 mod network_service;
 mod term_switch;
-mod ansi_seq;
+mod ansi_filter;
 mod config;
 
 const CONFIG_VERSION: i64 = 6;
