@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 # Steen Hegelund
-# Time-Stamp: 2024-Sep-19 23:02
+# Time-Stamp: 2024-Oct-21 13:31
 # vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=python :
 
 import argparse
@@ -18,6 +18,8 @@ def parse_arguments():
 
     parser.add_argument('--verbose', '-v', action='count', default=0)
     parser.add_argument('--count', '-c', type=int, default=5)
+    parser.add_argument('--duration', '-d', type=int, default=1, help='Duration in hours')
+    parser.add_argument('--interval', '-i', type=int, default=600, help='Poll interval in seconds')
     parser.add_argument('username', type=str)
     parser.add_argument('password', type=str)
 
@@ -33,8 +35,14 @@ class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
         super().__init__()
         self.log('test.log')
         self.erase()
-        self.add_log('python_version', sys.version)
-        self.add_log('python_executable', sys.executable)
+        self.stop = False
+
+    def remaining(self, secs):
+        hours = int(secs / 3600)
+        secs = int(secs % 3600)
+        mins = int(secs / 60)
+        secs = int(secs % 60)
+        return (hours, mins, secs)
 
     def set_date(self):
         cmd = f'date {time.strftime("%Y-%m-%d%H:%M:%S", time.localtime())}'
@@ -44,14 +52,14 @@ class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
             res = self.command(cmd)
         self.add_log(cmd, res)
 
-    def banner(self, idx, total):
-        text = f'This is iteration {idx} of {total}'
+    def banner(self, idx, interval, timeout):
+        hours, mins, secs = self.remaining(timeout - time.monotonic())
+        text = f'{idx}: Sleep {interval}s, Remains: {hours}h {mins}m {secs}s'
         self.alert(text)
-        self.add_log('Iteration', f'{idx} of {total}')
+        self.add_log('Iteration', text)
 
     def get_date(self):
         res = self.command('date -uR')
-        self.alert(f'date: {res}')
         self.add_log('date', (res, self.parse_date(res)))
 
     def parse_date(self, lines):
@@ -86,21 +94,27 @@ class Commands(LinuxLoginMixin, LoggerMixin, MenuMixin, TerminalIo):
     def get_list(self):
         self.cmd("ls -lah")
 
-    def run(self, count):
-        cnt = 1
-        while cnt <= count:
-            self.banner(cnt, count)
-            self.get_list()
-            self.get_date()
-            self.get_meminfo()
-            self.flush_log()
-            cnt += 1
-
+    def get_hostenv(self):
+        self.add_log('python_version', sys.version)
+        self.add_log('python_executable', sys.executable)
         env = []
         for elem in os.environ.items():
             env.append(str(elem))
 
         self.add_log('hostenv', env)
+
+    def run(self, duration, interval):
+        self.get_hostenv()
+        idx = 1
+        timeout = time.monotonic() + duration * 3600
+        while time.monotonic() < timeout and not self.stop:
+            self.get_list()
+            self.get_date()
+            self.get_meminfo()
+            self.flush_log()
+            self.banner(idx, interval, timeout)
+            time.sleep(interval)
+            idx += 1
         self.save()
 
 
@@ -121,7 +135,7 @@ def main():
     menu = (
            ('Get uname', cmds.get_uname),
            ('Get Interfaces', cmds.get_interfaces),
-           ('Run', cmds.run, args.count),
+           ('Run', cmds.run, args.duration, args.interval),
     )
     cmds.show_menu(menu, 'Choose > ', '----- Test Menu -----')
 
