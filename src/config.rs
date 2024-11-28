@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Sep-24 20:51
+//Time-Stamp: 2024-Nov-28 18:54
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Maintain configuration file and parse keyboard shortcuts
@@ -26,6 +26,7 @@ pub enum TermCommand {
     RunScript(String),
     SttySize,
     Environment,
+    Prompt(String),
 }
 
 
@@ -181,6 +182,7 @@ fn create_new_config(filename: &PathBuf, config_version: i64) -> toml::Table {
             "Ctrl+o" = "inject cat /proc/meminfo\n"
             "Ctrl+p" = "run test.py --count 2 username password"
             "Ctrl+f" = "file test.sh"
+            "Ctrl+r" = "prompt ---------- New Session ----------"
             "Print" = "nop"
             "Scroll" = "nop"
             "Pause" = "break"
@@ -281,6 +283,14 @@ fn create_keymap(config: &toml::Table) -> KeyConfig {
                         if let Some((cmd, arg)) = cmdstr.split_once(' ') {
                             // Command word and arguments
                             match cmd {
+                                "prompt" => {
+                                    let text = String::from(arg);
+                                    keyconfig.push(ShortCut {
+                                        keyname: key.to_string(),
+                                        keyseq: keyseq.into(),
+                                        command: TermCommand::Prompt(text),
+                                    });
+                                }
                                 "inject" => {
                                     let args: Vec<u8> = arg.bytes().collect();
                                     keyconfig.push(ShortCut {

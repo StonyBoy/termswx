@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-17 10:02
+//Time-Stamp: 2024-Nov-28 09:07
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -195,6 +195,9 @@ pub fn open_console(termswx: &mut TermSwitch, cmdopts: &CmdLineConfig, fileconfi
                         for val in seq {
                             switch_tx.send(MsgType::Console(*val)).unwrap();
                         }
+                    }
+                    TermCommand::Prompt(arg) => {
+                        println!("{}\r", format!("{}", arg).with(Color::White).on(Color::DarkGreen));
                     }
                     TermCommand::FileInject(arg) => {
                         let pid = script_pid.load(Ordering::Relaxed);
