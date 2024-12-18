@@ -2,7 +2,7 @@
 
 # Steen Hegelund
 # Read and write from stdin/stdout and send commands and receive responses
-# Time-Stamp: 2024-Oct-04 10:20
+# Time-Stamp: 2024-Dec-18 14:34
 # vim: set ts=4 sw=4 sts=4 tw=120 cc=120 et ft=python :
 
 import re
@@ -12,6 +12,7 @@ import os
 import json
 import queue
 import threading
+import datetime
 
 # Stderr Byte Prefixes
 ALERT = chr(0x11)
@@ -140,14 +141,18 @@ class LoggerMixin:
         except FileNotFoundError:
             pass
 
+    def get_timestamp(self):
+        return datetime.datetime.now().strftime('%d-%b-%Y %H:%M:%S')
+
     def add_log(self, req, res):
         self.log_responses.append((req, res))
         return res
 
     def flush_log(self):
-        with open(self.log_filename, 'at') as fobj:
-            fobj.write(json.dumps(self.log_responses, indent=4, sort_keys=True) + '\n')
-        self.log_responses = []
+        if len(self.log_responses):
+            with open(self.log_filename, 'at') as fobj:
+                fobj.write(json.dumps(self.log_responses, indent=4, sort_keys=True) + '\n')
+            self.log_responses = []
 
     def cmd(self, line):
         res = self.command(line)
