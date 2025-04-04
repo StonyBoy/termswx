@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Nov-28 09:07
+//Time-Stamp: 2025-Apr-07 14:12
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -76,6 +76,17 @@ pub fn show_error(msg: Vec<String>) {
 }
 
 
+fn show_duration_str(secs: u64) -> String {
+    let days = secs / (3600 * 24);
+    let secs = secs % (3600 * 24);
+    let hours = secs / 3600;
+    let secs = secs % 3600;
+    let mins = secs / 60;
+    let secs = secs % 60;
+    return format!("{} days {} hours {} mins {} secs", days, hours, mins, secs);
+}
+
+
 // Use the alternate screen for output
 fn show_help(cmdopts: &CmdLineConfig, fileconfig: &FileConfig, clients: &Arc<AtomicI8>) {
     terminal::disable_raw_mode().unwrap();
@@ -94,8 +105,7 @@ fn show_help(cmdopts: &CmdLineConfig, fileconfig: &FileConfig, clients: &Arc<Ato
     println!("{}", format!("  Tracefile: {}", cmdopts.tracefile));
     println!("{}", format!("  Configurationfile: {}", configfile));
     println!("{}", format!("  Terminal size: {:?}", size));
-    let duration = cmdopts.start.elapsed();
-    println!("{}", format!("  Elapsed Time: {}s", duration.as_secs()));
+    println!("{}", format!("  Elapsed Time: {}", show_duration_str(cmdopts.start.elapsed().as_secs())));
 
     println!("{}", format!("\n").on(Color::White));
     println!("{}", format!("=== Keyboard Shortcuts").with(Color::White).on(Color::DarkGreen));
