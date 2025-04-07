@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2025-Apr-07 14:12
+//Time-Stamp: 2025-Apr-07 14:47
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Handle input from the local console and looking up keyboard shortcuts
@@ -21,6 +21,7 @@ use crossterm::execute;
 use crossterm::style::{Color, Stylize};
 use std::sync::{Arc, atomic::AtomicBool, atomic::AtomicI8, atomic::Ordering};
 use std::collections::HashMap;
+use std::fs::canonicalize;
 
 
 fn banner(cmdopts: &CmdLineConfig, helpkey: String) {
@@ -92,6 +93,7 @@ fn show_help(cmdopts: &CmdLineConfig, fileconfig: &FileConfig, clients: &Arc<Ato
     terminal::disable_raw_mode().unwrap();
     execute!(std::io::stdout(), crossterm::terminal::EnterAlternateScreen).unwrap();
     let size = crossterm::terminal::size().unwrap();
+    let realdev = canonicalize(&cmdopts.device);
 
     println!("{}", format!("\n").on(Color::White));
     println!("{}", format!("=== TermSWX Help Menu").with(Color::White).on(Color::DarkGreen));
@@ -99,7 +101,18 @@ fn show_help(cmdopts: &CmdLineConfig, fileconfig: &FileConfig, clients: &Arc<Ato
     if cmdopts.portnum > 0 {
         println!("{}", format!("  Server portnumber: {}", cmdopts.portnum));
     }
-    println!("{}", format!("  Connected to: {:?}", cmdopts.device));
+    match realdev {
+        Ok(path) => {
+            if path != cmdopts.device {
+                println!("{}", format!("  Connected to: {:?} -> {:?}", cmdopts.device, path));
+            } else {
+                println!("{}", format!("  Connected to: {:?}", cmdopts.device));
+            }
+        }
+        Err(_) => {
+            println!("{}", format!("  Connected to: {:?}", cmdopts.device));
+        }
+    }
     println!("{}", format!("  Remote clients: {} of maximum {}", clients.load(Ordering::Relaxed), cmdopts.maxclients));
     let configfile = cmdopts.config_file.clone().into_os_string().into_string().unwrap();
     println!("{}", format!("  Tracefile: {}", cmdopts.tracefile));

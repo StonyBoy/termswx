@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Nov-28 08:55
+//Time-Stamp: 2025-Apr-07 14:24
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 // Configuration file stored as ~/.config/termswx/config.toml
@@ -156,8 +156,7 @@ fn parse_args() -> OptionParser<CmdLineConfig> {
 fn parse_path(opts: &mut CmdLineConfig) -> bool {
     let path = canonicalize(&opts.device);
     match path {
-        Ok(path) => {
-            opts.device = path;
+        Ok(_) => {
             true
         }
         Err(_) => {
