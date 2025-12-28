@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Nov-28 18:54
+//Time-Stamp: 2025-Dec-28 16:49
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 //
 // Maintain configuration file and parse keyboard shortcuts
@@ -127,7 +127,7 @@ impl FileConfig {
         }
     }
 
-    pub fn get_enviroment(&self) -> Option<toml::map::Iter<'_>> {
+    pub fn get_enviroment(&self) -> Option<toml::map::Iter<'_, String, toml::Value>> {
         if let Some(toml::Value::Table(envir)) = self.config.get("environment") {
             return Some(envir.iter());
         }

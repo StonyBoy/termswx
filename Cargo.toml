@@ -1,6 +1,6 @@
 [package]
 name = "termswx"
-version = "1.0.8"
+version = "1.0.9"
 edition = "2021"
 authors = [ "Steen Hegelund <steen@hegelund-hansen.dk>",]
 
@@ -10,7 +10,7 @@ crossbeam-channel = "0.5.15"
 crossterm = "0.29.0"
 log = "0.4.29"
 log4rs = "1.4.0"
-toml = "0.8.23"
+toml = "0.9.8"
 serialport = "4.8.1"
 sysinfo = "0.37.2"
 
