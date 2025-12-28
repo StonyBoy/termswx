@@ -1,19 +1,23 @@
 [package]
 name = "termswx"
-version = "1.0.7"
+version = "1.0.8"
 edition = "2021"
-authors = ["Steen Hegelund <steen@hegelund-hansen.dk>"]
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = [ "Steen Hegelund <steen@hegelund-hansen.dk>",]
 
 [dependencies]
-bpaf = { version = "0.9.12", features = ["autocomplete"] }
-chrono = "0.4.38"
-crossbeam-channel = "0.5.13"
+chrono = "0.4.42"
+crossbeam-channel = "0.5.15"
 crossterm = "0.29.0"
-log = "0.4.22"
-log4rs = "1.3.0"
-serde = { version = "1.0.203", features = ["derive"] }
-toml = "0.8.14"
-serialport = "4.5.1"
-sysinfo = "0.34.2"
+log = "0.4.29"
+log4rs = "1.4.0"
+toml = "0.8.23"
+serialport = "4.8.1"
+sysinfo = "0.37.2"
+
+[dependencies.bpaf]
+version = "0.9.20"
+features = [ "autocomplete",]
+
+[dependencies.serde]
+version = "1.0.228"
+features = [ "derive",]
