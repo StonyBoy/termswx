@@ -1,6 +1,6 @@
 [package]
 name = "termswx"
-version = "1.0.9"
+version = "1.0.10"
 edition = "2021"
 authors = [ "Steen Hegelund <steen@hegelund-hansen.dk>",]
 

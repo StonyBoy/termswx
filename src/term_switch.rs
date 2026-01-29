@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2024-Oct-11 12:12
+//Time-Stamp: 2026-Jan-31 12:26
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 use log::{error, trace, info};
@@ -44,14 +44,14 @@ pub struct TermSwitch {
 
     clients: Arc<AtomicI8>,
 
-    stop: bool,
+    stop: Arc<AtomicBool>,
 }
 
 
 // Public interface to get the receiver channels and stop the service
 impl TermSwitch {
     pub fn stop(&mut self) {
-        self.stop = true;
+        self.stop.store(true, Ordering::Relaxed);
     }
     pub fn get_switch_tx(&self) -> Sender<MsgType> {
         self.switch_tx.clone()
@@ -82,19 +82,18 @@ impl TermSwitch {
 
 fn net_clients_send(net_clients: &mut Vec<NetClient>, prefix: &str, msg: MsgType, clients: Arc::<AtomicI8>) {
     info!("{}: {:?}", prefix, msg);
-    let mut r_idx = net_clients.len();
-    for (pos, elem)  in net_clients.iter().enumerate()  {
+    let initial_len = net_clients.len();
+    net_clients.retain(|elem| {
         match elem.tx.send(msg.clone()) {
-            Ok(_) => (),
+            Ok(_) => true,  // Autoremove client
             Err(_) => {
-                error!("{}: Client {} gone at pos: {}", prefix, elem.addr, pos);
-                r_idx = pos;
+                error!("{}: Client {} gone", prefix, elem.addr);
+                false
             }
         }
-    }
-    if r_idx != net_clients.len() {
-        net_clients.remove(r_idx);
-        info!("{}: Client removed at pos: {}", prefix, r_idx);
+    });
+    if net_clients.len() != initial_len {
+        info!("{}: {} client(s) removed", prefix, initial_len - net_clients.len());
         clients.store(net_clients.len().try_into().expect("Get number of clients"), Ordering::Relaxed);
     }
 }
@@ -141,19 +140,20 @@ pub fn start(server: bool) -> TermSwitch {
         script_pid: Arc::new(AtomicU32::new(0)),
         binary_mode: Arc::new(AtomicBool::new(false)),
         clients: Arc::new(AtomicI8::new(0)),
-        stop: false,
+        stop: Arc::new(AtomicBool::new(false)),
     };
 
     let script_pid = termswx.script_pid.clone();
     let binary_mode = termswx.binary_mode.clone();
     let clients = termswx.clients.clone();
+    let stop = termswx.stop.clone();
 
     // Exchange messages
     thread::spawn(move || {
         let mut net_clients: Vec<NetClient> = Vec::new();
 
         loop {
-            if termswx.stop {
+            if stop.load(Ordering::Relaxed) {
                 return;
             }
             // We need to decide the origin

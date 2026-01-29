@@ -1,5 +1,5 @@
 //Steen Hegelund
-//Time-Stamp: 2025-Apr-07 14:24
+//Time-Stamp: 2026-Jan-31 12:24
 //vim: set ts=4 sw=4 sts=4 tw=99 cc=120 et ft=rust :
 
 // Configuration file stored as ~/.config/termswx/config.toml
@@ -122,7 +122,10 @@ fn parse_args() -> OptionParser<CmdLineConfig> {
     let mut path = PathBuf::new();
 
     #[cfg(any(target_os = "linux", target_os = "macos"))]
-    path.push(env::var("XDG_CONFIG_HOME").expect("No XDG_CONFIG_HOME environment"));
+    path.push(env::var("XDG_CONFIG_HOME").unwrap_or_else(|_| {
+        // Fallback to use ~/.config
+        format!("{}/.config", env::var("HOME").expect("No HOME environment"))
+    }));
 
     #[cfg(target_os = "windows")]
     path.push(env::var("APPDATA").expect("No APPDATA environment")); //  APPDATA=C:\Users\xxxx\AppData\Roaming
@@ -221,7 +224,8 @@ fn main() {
         }
         return;
     }
-    if cmdopts.device.to_str().unwrap().len() == 0 {
+    if cmdopts.device.to_str().map_or(true, |s| s.is_empty()) {
+        // Non UTF-8 or empty string
         println!("Could not open device");
         return;
     }
